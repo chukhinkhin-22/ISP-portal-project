@@ -1,5 +1,5 @@
 # Hearth — ISP Customer Portal & Ticket Management System
- 
+
 A full-stack web application that lets broadband customers manage their subscriptions and raise support tickets — while automatically routing those tickets to the right internal team the moment they're submitted.
  
 Built as a portfolio project targeting ISP internships, but designed to reflect how these systems actually work in production: normalized relational data, clean separation between business logic and data access, and a UI that takes user psychology into account (people filing support tickets are usually already frustrated — the interface shouldn't make that worse).
@@ -60,3 +60,11 @@ Seven tables, normalized to 3NF.
 <img width="1918" height="962" alt="image" src="https://github.com/user-attachments/assets/a10218bc-6cbd-4fd2-9adf-5744b697e318" />
 <img width="1918" height="962" alt="image" src="https://github.com/user-attachments/assets/c60e968d-0f63-487d-bf89-0d04f6e8028c" />
 <img width="1918" height="968" alt="image" src="https://github.com/user-attachments/assets/56b2df4c-960f-4954-b992-428206e4db6e" />
+
+## What I'd add with more time
+
+-Email notifications — notify the customer when a staff member replies, and alert the relevant department head when a High-priority ticket comes in.
+-Smarter routing — the current keyword scorer is fast and transparent, but a TF-IDF approach or a fine-tuned classifier would handle edge cases (e.g. "my bill shows I'm down to 10Mbps" currently ties between Billing and Network) more gracefully.
+-Admin dashboard — aggregate views: average resolution time by department, ticket volume over time, node status history.
+-Subscription management — let customers upgrade or downgrade their plan through the portal instead of having to call in.
+-Refresh tokens — the current JWT has a fixed expiry. A refresh token flow would be the correct production approach.
