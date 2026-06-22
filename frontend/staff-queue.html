@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Staff queue — Hearth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-shell">
+  <div class="brand-stripe"></div>
+
+  <nav class="topnav">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="16" cy="16" r="3.4" fill="#D97757"/>
+        <path d="M16 10.5C19 10.5 21.5 13 21.5 16" stroke="#EFBF04" stroke-width="2" stroke-linecap="round"/>
+        <path d="M16 6C21.5 6 26 10.5 26 16" stroke="#EFBF04" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+        <path d="M16 10.5C13 10.5 10.5 13 10.5 16" stroke="#7C8B5E" stroke-width="2" stroke-linecap="round"/>
+        <path d="M16 6C10.5 6 6 10.5 6 16" stroke="#7C8B5E" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+      </svg>
+      Hearth
+    </div>
+    <div class="nav-links">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="submit-ticket.html">Submit a ticket</a>
+      <a href="staff-queue.html" class="active" id="staffQueueLink">Staff queue</a>
+    </div>
+    <div class="nav-user">
+      <div class="nav-user-avatar" id="navUserAvatar"></div>
+      <span id="navUserName"></span>
+      <button class="btn btn-ghost" id="logoutBtn" style="padding: 6px 14px;">Log out</button>
+    </div>
+  </nav>
+
+  <header class="page-hero">
+    <div class="page-hero-blob b1"></div>
+    <div class="page-hero-blob b2"></div>
+    <div class="container page-hero-inner">
+      <span class="eyebrow">Triage</span>
+      <h1>Staff queue</h1>
+      <p class="lead">Tickets arrive already sorted by department and priority — no manual triage needed before you start working.</p>
+    </div>
+  </header>
+
+  <main class="container" style="padding-top: 28px; padding-bottom: 56px; flex: 1;">
+
+    <div class="filter-row" id="departmentFilters">
+      <button class="filter-chip active" data-dept="">All departments</button>
+      <button class="filter-chip" data-dept="Network_Tier_1">Network Tier 1</button>
+      <button class="filter-chip" data-dept="Billing_Department">Billing</button>
+      <button class="filter-chip" data-dept="General_Queue">General Queue</button>
+    </div>
+
+    <div class="kanban-board" id="kanbanBoard">
+      <div>
+        <div class="kanban-column-header">
+          <div class="kanban-column-title"><span class="tag-dot" style="width:8px;height:8px;border-radius:50%;background:var(--terracotta);"></span>Open</div>
+          <span class="kanban-column-count" id="countOpen">0</span>
+        </div>
+        <div class="kanban-column-body" id="colOpen"></div>
+      </div>
+      <div>
+        <div class="kanban-column-header">
+          <div class="kanban-column-title"><span class="tag-dot" style="width:8px;height:8px;border-radius:50%;background:var(--gold);"></span>In progress</div>
+          <span class="kanban-column-count" id="countProgress">0</span>
+        </div>
+        <div class="kanban-column-body" id="colProgress"></div>
+      </div>
+      <div>
+        <div class="kanban-column-header">
+          <div class="kanban-column-title"><span class="tag-dot" style="width:8px;height:8px;border-radius:50%;background:var(--moss);"></span>Resolved</div>
+          <span class="kanban-column-count" id="countResolved">0</span>
+        </div>
+        <div class="kanban-column-body" id="colResolved"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    Api.requireAuth();
+    Api.requireRole(['Staff', 'Admin']);
+    Ui.initNav();
+
+    let currentDept = '';
+
+    function ticketCardHtml(t) {
+      return `
+        <a href="ticket-detail.html?id=${t.ticketId}" class="ticket-card">
+          <div class="ticket-card-top">
+            <span class="ticket-card-subject">${Ui.escapeHtml(t.subject)}</span>
+            <span class="ticket-card-id">#${t.ticketId}</span>
+          </div>
+          <div class="ticket-card-meta">
+            ${Ui.priorityTag(t.priority)}
+            ${Ui.departmentTag(t.department)}
+          </div>
+          <div class="ticket-card-date">${Ui.formatDate(t.createdAt)}</div>
+        </a>
+      `;
+    }
+
+    function renderColumn(elId, countId, tickets) {
+      const el = document.getElementById(elId);
+      document.getElementById(countId).textContent = tickets.length;
+      if (!tickets.length) {
+        el.innerHTML = `<p class="muted text-sm" style="padding: 12px 4px;">Nothing here.</p>`;
+        return;
+      }
+      el.innerHTML = tickets.map(ticketCardHtml).join('');
+    }
+
+    async function loadQueue() {
+      try {
+        const params = currentDept ? { department: currentDept } : {};
+        const tickets = await Api.getQueue(params);
+
+        renderColumn('colOpen', 'countOpen', tickets.filter(t => t.status === 'Open'));
+        renderColumn('colProgress', 'countProgress', tickets.filter(t => t.status === 'In_Progress'));
+        renderColumn('colResolved', 'countResolved', tickets.filter(t => t.status === 'Resolved' || t.status === 'Closed'));
+      } catch (err) {
+        document.getElementById('kanbanBoard').innerHTML = `<p class="text-sm" style="color: var(--terracotta-deep);">${Ui.escapeHtml(err.message)}</p>`;
+      }
+    }
+
+    document.querySelectorAll('#departmentFilters .filter-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('#departmentFilters .filter-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentDept = chip.dataset.dept;
+        loadQueue();
+      });
+    });
+
+    loadQueue();
+  </script>
+</body>
+</html>

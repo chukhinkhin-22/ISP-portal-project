@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Hearth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-shell">
+  <div class="brand-stripe"></div>
+
+  <nav class="topnav">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="16" cy="16" r="3.4" fill="#D97757"/>
+        <path d="M16 10.5C19 10.5 21.5 13 21.5 16" stroke="#EFBF04" stroke-width="2" stroke-linecap="round"/>
+        <path d="M16 6C21.5 6 26 10.5 26 16" stroke="#EFBF04" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+        <path d="M16 10.5C13 10.5 10.5 13 10.5 16" stroke="#7C8B5E" stroke-width="2" stroke-linecap="round"/>
+        <path d="M16 6C10.5 6 6 10.5 6 16" stroke="#7C8B5E" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+      </svg>
+      Hearth
+    </div>
+    <div class="nav-links">
+      <a href="dashboard.html" class="active">Dashboard</a>
+      <a href="submit-ticket.html">Submit a ticket</a>
+      <a href="staff-queue.html" id="staffQueueLink">Staff queue</a>
+    </div>
+    <div class="nav-user">
+      <div class="nav-user-avatar" id="navUserAvatar"></div>
+      <span id="navUserName"></span>
+      <button class="btn btn-ghost" id="logoutBtn" style="padding: 6px 14px;">Log out</button>
+    </div>
+  </nav>
+
+  <header class="page-hero">
+    <div class="page-hero-blob b1"></div>
+    <div class="page-hero-blob b2"></div>
+    <svg class="page-hero-watermark" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="3.4" fill="#33312C"/>
+      <path d="M16 10.5C19 10.5 21.5 13 21.5 16" stroke="#33312C" stroke-width="2"/>
+      <path d="M16 6C21.5 6 26 10.5 26 16" stroke="#33312C" stroke-width="2"/>
+      <path d="M16 10.5C13 10.5 10.5 13 10.5 16" stroke="#33312C" stroke-width="2"/>
+      <path d="M16 6C10.5 6 6 10.5 6 16" stroke="#33312C" stroke-width="2"/>
+    </svg>
+    <div class="container page-hero-inner">
+      <span class="eyebrow">Your overview</span>
+      <h1 id="greeting">Welcome back</h1>
+      <p class="lead">Here's where things stand with your connection and open tickets.</p>
+    </div>
+  </header>
+
+  <main class="container" style="padding-top: 32px; padding-bottom: 56px; flex: 1;">
+    <div class="dashboard-grid">
+
+      <div class="card card-accent-gold" id="planCard">
+        <h3>Your plan</h3>
+        <div id="planContent">
+          <p class="muted text-sm">Loading...</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h3 style="margin: 0;">Your tickets</h3>
+          <a href="submit-ticket.html" class="btn btn-primary btn-sm">+ Submit a ticket</a>
+        </div>
+        <div id="ticketsList">
+          <p class="muted text-sm">Loading...</p>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    Api.requireAuth();
+    Ui.initNav();
+
+    const user = Api.getUser();
+    document.getElementById('greeting').textContent = `Welcome back, ${user.fullName.split(' ')[0]}`;
+
+    async function loadPlan() {
+      const planContent = document.getElementById('planContent');
+      try {
+        const subs = await Api.getMySubscriptions();
+        if (!subs.length) {
+          planContent.innerHTML = `<p class="muted text-sm">No active subscription on file yet.</p>`;
+          return;
+        }
+        const sub = subs[0];
+        const pulseColor = Ui.nodeStatusPulse(sub.nodeStatus);
+        planContent.innerHTML = `
+          <div class="plan-speed">${sub.speedMbps}<span class="plan-speed-unit">Mbps</span></div>
+          <p class="muted text-sm" style="margin-top: 4px;">${Ui.escapeHtml(sub.planName)}</p>
+          <div class="node-status-row">
+            <span class="signal-pulse ${pulseColor}"></span>
+            ${Ui.escapeHtml(sub.nodeName)} · ${Ui.escapeHtml(sub.region)} · ${sub.nodeStatus}
+          </div>
+          <div class="divider"></div>
+          <div class="plan-meta-row"><span class="label">Monthly price</span><span class="value mono">$${Number(sub.monthlyPrice).toFixed(2)}</span></div>
+          <div class="plan-meta-row"><span class="label">Status</span><span class="value">${sub.status}</span></div>
+          <div class="plan-meta-row"><span class="label">Since</span><span class="value">${Ui.formatDate(sub.startDate)}</span></div>
+        `;
+      } catch (err) {
+        planContent.innerHTML = `<p class="text-sm" style="color: var(--terracotta-deep);">${Ui.escapeHtml(err.message)}</p>`;
+      }
+    }
+
+    async function loadTickets() {
+      const list = document.getElementById('ticketsList');
+      try {
+        const tickets = await Api.getMyTickets();
+        if (!tickets.length) {
+          list.innerHTML = `
+            <div class="empty-state">
+              <p>No tickets yet — that's a good thing.</p>
+              <a href="submit-ticket.html" class="btn btn-secondary btn-sm" style="margin-top: 8px;">Submit your first ticket</a>
+            </div>`;
+          return;
+        }
+        list.innerHTML = tickets.slice(0, 6).map(t => `
+          <a href="ticket-detail.html?id=${t.ticketId}" class="ticket-card">
+            <div class="ticket-card-top">
+              <span class="ticket-card-subject">${Ui.escapeHtml(t.subject)}</span>
+              <span class="ticket-card-id">#${t.ticketId}</span>
+            </div>
+            <div class="ticket-card-meta">
+              ${Ui.statusTag(t.status)}
+              ${Ui.priorityTag(t.priority)}
+              ${Ui.departmentTag(t.department)}
+            </div>
+            <div class="ticket-card-date">${Ui.formatDate(t.createdAt)}</div>
+          </a>
+        `).join('');
+      } catch (err) {
+        list.innerHTML = `<p class="text-sm" style="color: var(--terracotta-deep);">${Ui.escapeHtml(err.message)}</p>`;
+      }
+    }
+
+    loadPlan();
+    loadTickets();
+  </script>
+</body>
+</html>
